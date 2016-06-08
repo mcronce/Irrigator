@@ -1,0 +1,40 @@
+#!/usr/bin/python3
+
+import AM2315
+import datetime
+import RPi.GPIO
+import sys
+import time
+
+def get_timestamp(): # {{{
+	return str(int(time.mktime(datetime.datetime.now().timetuple())))
+# }}}
+
+am2315 = AM2315.AM2315()
+RPi.GPIO.setmode(RPi.GPIO.BCM)
+RPi.GPIO.setwarnings(False)
+RPi.GPIO.setup(23, RPi.GPIO.OUT)
+
+temperature = am2315.temperature()
+humidity = am2315.humidity()
+
+sys.stdout.write(get_timestamp() + ' "Irrigator environment" "Irrigator environment" "Environmental data"')
+sys.stdout.write(' "Temperature" GAUGE "Degrees C//Degrees F" ' + (str(temperature) if temperature < 150 else 'NULL'))
+sys.stdout.write(' "Humidity" GAUGE Percent ' + (str(humidity) if humidity < 110 else 'NULL'))
+sys.stdout.write("\n")
+
+pin_value = RPi.GPIO.input(23)
+serial = open('/dev/ttyAMA0', 'r+b', buffering = 0)
+serial.write(b'1')
+revs = int(serial.readline())
+serial.close()
+serial = None
+
+sys.stdout.write(get_timestamp() + ' "Irrigator state" "Irrigator state" "Irrigation data"')
+sys.stdout.write(' "Flow meter revolutions since startup" GAUGE Revolutions ' + str(revs))
+sys.stdout.write(' "Flow meter revolutions /sec" COUNTER32 Revolutions ' + str(revs))
+sys.stdout.write(' "Water flowed since startup" GAUGE Millileters ' + str(float(revs) * 2.25))
+sys.stdout.write(' "Water flow /sec" COUNTER64 Millileters ' + str(int(float(revs) * 2.25)))
+sys.stdout.write(' "Valve pin state" GAUGE Number ' + str(int(bool(pin_value))))
+sys.stdout.write("\n")
+
