@@ -3,6 +3,7 @@
 import AM2315
 import datetime
 import RPi.GPIO
+import select
 import sys
 import time
 
@@ -26,15 +27,23 @@ sys.stdout.write("\n")
 pin_value = RPi.GPIO.input(23)
 serial = open('/dev/ttyAMA0', 'r+b', buffering = 0)
 serial.write(b'1')
-revs = int(serial.readline())
+
+ready, _, _ = select.select([serial], [], [], 5.0)
+if(serial in ready):
+	revs = int(serial.readline())
+	flowed = float(revs) * 2.25
+else:
+	revs = 'NULL'
+	flowed = 'NULL'
+
 serial.close()
 serial = None
 
 sys.stdout.write(get_timestamp() + ' "Irrigator state" "Irrigator state" "Irrigation data"')
 sys.stdout.write(' "Flow meter revolutions since startup" GAUGE Revolutions ' + str(revs))
 sys.stdout.write(' "Flow meter revolutions /sec" COUNTER32 Revolutions ' + str(revs))
-sys.stdout.write(' "Water flowed since startup" GAUGE Millileters ' + str(float(revs) * 2.25))
-sys.stdout.write(' "Water flow /sec" COUNTER64 Millileters ' + str(int(float(revs) * 2.25)))
+sys.stdout.write(' "Water flowed since startup" GAUGE Millileters ' + str(flowed))
+sys.stdout.write(' "Water flow /sec" COUNTER64 Millileters ' + str(int(flowed) if flowed != 'NULL' else 'NULL'))
 sys.stdout.write(' "Valve pin state" GAUGE Number ' + str(int(bool(pin_value))))
 sys.stdout.write("\n")
 
